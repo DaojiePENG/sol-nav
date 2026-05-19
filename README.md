@@ -1,5 +1,3 @@
-# SOL-Nav GitHub README.md
-
 # SOL-Nav: Structured Observation Language for Efficient and Generalizable Vision-Language Navigation
 
 
@@ -301,10 +299,11 @@ The SOL-Nav framework is designed for easy extension—key future directions sup
 If you find SOL-Nav useful for your research, please cite our paper:
 
 ```bibtex
-@inproceedings{SOLNav2026,
-  title={SOL-Nav: Structured Observation Language for Efficient and Generalizable Vision-Language Navigation},
-  author={Anonymous},
-  year={2026},
+@article{peng2026structured,
+  title={Structured Observation Language for Efficient and Generalizable Vision-Language Navigation},
+  author={Peng, Daojie and Ma, Fulong and Ma, Jun},
+  journal={arXiv preprint arXiv:2603.27577},
+  year={2026}
 }
 ```
 
