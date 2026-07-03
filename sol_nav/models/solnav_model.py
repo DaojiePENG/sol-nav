@@ -230,8 +230,9 @@ class SOLNavMultiStepClassifier(nn.Module):
         instance.model_name = model_name
 
         # Load base model with LoRA adapter
+        # First load the original base model, then apply the adapter
         base_model = AutoModel.from_pretrained(
-            checkpoint_dir,
+            model_name,
             trust_remote_code=True,
             cache_dir=cache_dir,
         )
