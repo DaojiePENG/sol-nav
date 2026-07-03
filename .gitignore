@@ -1,3 +1,53 @@
 .claude/
 *.log
 *.aux
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+logs/
+logs_*/
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints
+
+# Data & Models (large files)
+data/cache/
+data/hf_model_cache/
+outputs/
+wandb/
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# Logs
+*.out
+*.err
+
+# Task logs
+claude_task_log*.txt
+claude_round_*.log
+
+# Night dev scripts
+sol_nav_night_dev_*.sh
+sol_nav_night_dev_*.md

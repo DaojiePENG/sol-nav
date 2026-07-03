@@ -1,0 +1,80 @@
+# SOL-Nav Default Configuration
+# Multi-resolution structured observation with Qwen3-Embedding-0.6B
+# Optimized for 4x RTX 4090 (24GB VRAM each)
+
+# ---------- Model ----------
+model:
+  name: "Qwen/Qwen3-Embedding-0.6B"
+  hf_cache_dir: "data/hf_model_cache"
+  max_length: 4096
+  num_labels: 4        # stop=0, turn_left=1, turn_right=2, move_forward=3
+  num_steps: 4         # action chunk size
+
+# ---------- LoRA ----------
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+# ---------- Data ----------
+data:
+  # Path to preprocessed R2R data (l2am_r2r_v3 format)
+  data_root: "/mnt/slurmfs-4090node1/homes/dpeng108/l2am_ws/data/l2am_r2r_v3"
+  # Grid resolutions: current, short-term, long-term
+  grid_resolutions:
+    current: 6        # Current observation grid (NxN) - full resolution
+    short_term: 4     # Short-term history grid (NxN) - downsampled from 6x6
+    long_term: 2      # Long-term history grid (NxN) - downsampled from 6x6
+  # Number of history frames per resolution level
+  history:
+    current_steps: 1      # Number of frames at current resolution (step 0)
+    short_term_steps: 2   # Number of frames at short-term resolution (steps -2, -1)
+    long_term_steps: 16   # Number of frames at long-term resolution (steps -18 to -3)
+  # Use multi-resolution mode (True) or single-resolution mode (False)
+  use_multires: true
+  # Single-resolution fallback (only used when use_multires=false)
+  num_his: 1
+  # Data augmentation
+  augment_ratio: 0.8
+  augment_ratio_u: 0.6
+  cache_dir: "data/cache"
+
+# ---------- Training ----------
+training:
+  output_dir: "outputs/solnav_qwen3_lora_multires"
+  num_epochs: 30
+  # Batch size per GPU: 4 fits in 24GB VRAM with bf16 + 4096 max_length
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 8
+  # Effective batch = 4 * 4 GPUs * 4 accum = 64
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  logging_steps: 10
+  eval_steps: 1000
+  save_steps: 1000
+  save_total_limit: 3
+  metric_for_best_model: "eval_step0_acc"
+  greater_is_better: true
+  seed: 42
+  dataloader_num_workers: 8
+  ddp_find_unused_parameters: true
+  fp16: false
+  bf16: true
+  resume_from_checkpoint: null
+
+# ---------- WandB ----------
+wandb:
+  project: "sol-nav"
+  run_name: "solnav-qwen3-lora-multires"
+  enabled: true
+
+# ---------- Action Space ----------
+actions:
+  0: "stop"
+  1: "turn_left"
+  2: "turn_right"
+  3: "move_forward"
