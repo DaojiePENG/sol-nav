@@ -160,6 +160,16 @@ class SOLNavMultiStepClassifier(nn.Module):
 
         return (loss, logits) if loss is not None else logits
 
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        """Enable gradient checkpointing for the base model."""
+        if hasattr(self.base_model, "gradient_checkpointing_enable"):
+            self.base_model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
+
+    def gradient_checkpointing_disable(self):
+        """Disable gradient checkpointing for the base model."""
+        if hasattr(self.base_model, "gradient_checkpointing_disable"):
+            self.base_model.gradient_checkpointing_disable()
+
     def save_checkpoint(self, save_dir: str):
         """Save model checkpoint (LoRA weights + config + heads).
 

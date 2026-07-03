@@ -6,7 +6,7 @@
 model:
   name: "Qwen/Qwen3-Embedding-0.6B"
   hf_cache_dir: "data/hf_model_cache"
-  max_length: 4096
+  max_length: 2500
   num_labels: 4        # stop=0, turn_left=1, turn_right=2, move_forward=3
   num_steps: 4         # action chunk size
 
@@ -43,24 +43,25 @@ data:
 # ---------- Training ----------
 training:
   output_dir: "outputs/solnav_qwen3_lora_multires"
-  num_epochs: 30
-  # Batch size per GPU: 4 fits in 24GB VRAM with bf16 + 4096 max_length
-  per_device_train_batch_size: 4
-  per_device_eval_batch_size: 8
-  # Effective batch = 4 * 4 GPUs * 4 accum = 64
+  num_epochs: 5
+  # Batch size per GPU: 2 fits in 24GB VRAM with bf16 + 2500 max_length
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 4
+  # Effective batch = 2 * 4 GPUs * 4 accum = 32
   gradient_accumulation_steps: 4
   learning_rate: 2.0e-4
   warmup_ratio: 0.1
   weight_decay: 0.01
   max_grad_norm: 1.0
   logging_steps: 10
-  eval_steps: 1000
-  save_steps: 1000
-  save_total_limit: 3
+  eval_steps: 500
+  save_steps: 500
+  save_total_limit: 2
   metric_for_best_model: "eval_step0_acc"
   greater_is_better: true
   seed: 42
-  dataloader_num_workers: 8
+  dataloader_num_workers: 2
+  gradient_checkpointing: true
   ddp_find_unused_parameters: true
   fp16: false
   bf16: true
