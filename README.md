@@ -1,196 +1,33 @@
 # SOL-Nav: Structured Observation Language for Efficient and Generalizable Vision-Language Navigation
 
-
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![arXiv](https://img.shields.io/badge/arXiv-2603.27577-b31b1b)](https://arxiv.org/abs/2603.27577)
 [![Python](https://img.shields.io/badge/Python-3.8+-orange.svg)](https://www.python.org/)
 
-Official implementation of **SOL-Nav**, a novel Vision-Language Navigation (VLN) framework that converts egocentric RGB-D visual observations into compact structured language descriptions, enabling efficient and generalizable navigation via pure pre-trained language models (PLMs). 
-<!-- This work is a submission to ECCV 2026 (Paper ID: 11964). -->
+Official implementation of **SOL-Nav**, a Vision-Language Navigation (VLN) framework that converts egocentric RGB-D visual observations into compact structured language descriptions, enabling efficient and generalizable navigation via pure pre-trained language models (PLMs).
 
-## 📺 Video Demo
+## Project Overview
 
-A detailed video demonstration of SOL-Nav's performance on simulated benchmarks and real-world robotic deployments is available in the repository (same directory as this README.md):
+SOL-Nav translates egocentric RGB-D observations into structured textual descriptions (semantic, color, depth information in N×N grids) and concatenates this with language instructions as pure language input to a PLM (Qwen3-Embedding-0.6B). This eliminates the need for visual encoders and leverages the full reasoning capabilities of pre-trained language models.
 
-<!-- [ECCV_2026_SOL-Nav_Video.mp4](ECCV_2026_SOL-Nav_Video.mp4) -->
+### Key Results (R2R-CE Val-Unseen)
 
-## 📜 Paper Abstract
+| Metric | Value |
+|--------|-------|
+| First-step Accuracy | **73.15%** |
+| Mean Step Accuracy | **66.31%** |
+| Macro F1 (Step 0) | **0.4313** |
+| Training Steps | 2,500 |
+| Model Parameters | 600M (6.7M trainable via LoRA) |
 
-Vision-Language Navigation (VLN) requires embodied agents to navigate complex environments by following natural language instructions, demanding tight fusion of visual and language modalities. Existing methods convert raw images into visual tokens/implicit features, relying on large-scale visual pre-training and suffering from poor generalization under environmental variations (e.g., lighting, texture).
-
-To address these issues, we propose **SOL-Nav**, which translates egocentric RGB-D observations into **structured textual descriptions** (semantic, color, depth information in an N×N grid) and concatenates this with language instructions as **pure language input** to a PLM. Experimental results on standard VLN benchmarks (R2R-CE, RxR-CE) and real-world robotic deployments show that SOL-Nav:
-
-- Significantly reduces model size and training data dependency
-
-- Fully leverages PLMs' reasoning and representation capabilities
-
-- Achieves strong generalization to unseen environments
-
-- Matches or outperforms SOTA methods with a tiny model (0.6B parameters)
-
-## 🚀 Core Advantages
-
-1. **Reduced Training Cost**: Eliminates scratch training of visual encoders, only requires small-scale navigation data for PLM fine-tuning (LoRA).
-
-2. **Strong Generalization**: Structured text avoids environmental noise (lighting/texture) and enables robust adaptation to unseen scenes.
-
-3. **Simplified Pipeline**: No complex multimodal encoders/fusion modules—pure language model for navigation decision-making, lower computational cost.
-
-4. **Real-World Deployable**: Small model size (0.6B params) and low inference latency (0.8s on edge devices) for physical robot integration.
-
-## 🏗️ Engineering Framework
-
-The SOL-Nav codebase is modularly designed for easy extension, reproduction, and real-world deployment. The framework is divided into **6 core modules**, with clear data flow and minimal dependencies between modules.
-
-### Overall Architecture
-
-```bash
-SOL-Nav/
-├── configs/                # Configuration files (model, data, training, deployment)
-├── data/                   # Data processing pipeline
-│   ├── dataset/            # VLN dataset loaders (R2R-CE, RxR-CE)
-│   ├── preprocess/         # RGB-D to structured text conversion
-│   └── augmentation/       # Instruction and observation augmentation
-├── models/                 # Model implementation
-│   ├── backbone/           # PLM backbone (Qwen3-Embedding-0.6B)
-│   ├── heads/              # Multi-step action prediction heads
-│   └── lora/               # LoRA fine-tuning implementation
-├── navigation/             # Navigation execution
-│   ├── agent/              # Embodied agent controller
-│   ├── action/             # Action space definition and execution
-│   └── metrics/            # VLN evaluation metrics (NE, SR, OS, SPL)
-├── deployment/             # Real-world robot deployment
-│   ├── sensor/             # RGB-D sensor driver (Intel RealSense D435i)
-│   ├── robot/              # Robot control (Unitree Go2)
-│   └── edge/               # Edge computing optimization (NVIDIA Jetson Orin)
-├── utils/                  # Utility functions (logging, visualization, tools)
-├── train.py                # Training script (fine-tune PLM for action prediction)
-├── eval.py                 # Evaluation script (simulated benchmarks)
-├── deploy.py               # Real-world deployment script
-└── demo.py                 # Quick demo script (sim/real)
-```
-
-### Module Details
-
-#### 1. configs/
-
-Unified configuration management with YAML files for all hyperparameters:
-
-- `model.yaml`: PLM backbone, LoRA rank, action head settings
-
-- `data.yaml`: Dataset paths, grid resolution (2×2/4×4/6×6), preprocessing params
-
-- `train.yaml`: Batch size, epochs, loss function, optimizer (AdamW)
-
-- `deploy.yaml`: Sensor resolution, robot speed, inference latency threshold
-
-#### 2. data/preprocess/ (Core Module)
-
-Converts raw RGB-D images to **structured textual observations**—the core innovation of SOL-Nav:
-
-- **Grid Division**: Split RGB-D/semantic segmentation maps into N×N grids (6×6 for current, 4×4 short-term, 2×2 long-term)
-
-- **Feature Extraction**:
-        
-
-    - Depth: Average depth value of each grid cell (string format)
-
-    - Semantic: Dominant semantic category (via pre-trained SegFormer/Grounded SAM)
-
-    - Color: HSV-to-standard color name mapping (predefined lookup table)
-
-- **Text Structuring**: Format each grid cell as `[i,j]: depth=d, semantic=s, color=c` and concatenate with time-step info
-
-#### 3. models/
-
-Lightweight PLM-based model for action block prediction:
-
-- **Backbone**: Qwen3-Embedding-0.6B (extended context window for long structured observations)
-
-- **LoRA Fine-tuning**: Parameter-efficient fine-tuning on VLN data (no full PLM retraining)
-
-- **Multi-Step Classification Heads**: 4 linear heads (for 4-action block prediction) with balanced class weights (address action imbalance)
-
-- **Loss Function**: Weighted cross-entropy loss (average over 4 action steps)
-
-#### 4. navigation/
-
-VLN agent and evaluation pipeline for simulated environments (Habitat):
-
-- **Agent**: Embodied agent with historical observation memory (short/long-term)
-
-- **Action Space**: Discrete actions (stop=0, turn left 15°=1, turn right 15°=2, move forward 25cm=3)
-
-- **Metrics**: Standard VLN evaluation (NE, SR, OS, SPL) with automatic result logging/visualization
-
-#### 5. deployment/
-
-Real-world robotic deployment pipeline (Unitree Go2 + NVIDIA Jetson Orin + Intel RealSense D435i):
-
-- **Sensor Driver**: RGB-D image acquisition (640×480) and real-time preprocessing
-
-- **Robot Control**: Low-level robot action execution (compatible with ROS/ROS2)
-
-- **Edge Optimization**: TensorRT quantization for PLM inference (0.8s latency on Jetson Orin)
-
-- **Semantic Segmentation**: Fine-tuned SegFormer on real-world + VLN dataset data (1000 manually annotated real images)
-
-#### 6. utils/
-
-Helper functions for the entire pipeline:
-
-- **Logging**: Structured logging (training/eval/deployment) with WandB integration
-
-- **Visualization**: Grid observation visualization, trajectory plotting, metric curves
-
-- **Tools**: Text prompt construction, model checkpoint saving/loading, data conversion
-
-## 📊 Key Experimental Results
-
-SOL-Nav achieves state-of-the-art or comparable performance on **R2R-CE** and **RxR-CE** (val-unseen splits) with a **0.6B parameter model** (10× smaller than SOTA multimodal models), without additional training data or waypoint predictors.
-
-### R2R-CE Val-Unseen (No Extra Data / No Waypoint Predictor)
-
-|Metric|NE (↓)|OS (↑)|SR (↑)|SPL (↑)|
-|---|---|---|---|---|
-|SOL-Nav|5.11|72.9|53.6|49.2|
-|NaVILA|5.37|57.6|49.7|45.5|
-|UniNaVid|5.58|53.3|47.0|42.7|
-### RxR-CE Val-Unseen (No Extra Data)
-
-|Metric|NE (↓)|OS (↑)|SR (↑)|SPL (↑)|
-|---|---|---|---|---|
-|SOL-Nav|6.87|60.5|48.6|42.3|
-|UniNaVid|6.24|55.5|48.7|40.9|
-### Ablation Study (R2R-CE Val-Unseen)
-
-All core components are critical for performance—**6×6 grid resolution, historical observations, and depth information** are indispensable:
-
-|Ablation|NE (↓)|OS (↑)|SR (↑)|SPL (↑)|
-|---|---|---|---|---|
-|Full Model (SOL-Nav)|5.11|72.9|53.6|49.2|
-|Lower Res (4×4)|6.84|43.4|34.5|29.8|
-|No Historical Obs|7.81|39.4|26.5|21.9|
-|No Depth Info|7.98|31.2|21.6|17.8|
-## 🛠️ Installation & Dependencies
+## Quick Start
 
 ### Prerequisites
 
-- Python 3.8+
-
-- PyTorch 2.0+
-
-- CUDA 11.7+ (for training) / JetPack 5.1+ (for Jetson Orin deployment)
-
-- Habitat-Sim 0.2.4 (for VLN simulation)
-
-- Hugging Face Transformers (for PLM backbone)
-
-- LoRA: peft 0.6.0
-
-- RGB-D Sensor: pyrealsense2 2.54.1
-
-- Robot Control: unitree_api (for Unitree Go2)
+- Python 3.8+ (tested with 3.10)
+- PyTorch 2.0+ with CUDA
+- 4x NVIDIA RTX 4090 (24GB VRAM each) or equivalent
+- Conda environment: `env_transformer_eval`
 
 ### Installation
 
@@ -199,104 +36,307 @@ All core components are critical for performance—**6×6 grid resolution, histo
 git clone https://github.com/DaojiePENG/sol-nav.git
 cd sol-nav
 
-# Create a conda environment
-conda create -n solnav python=3.8
-conda activate solnav
+# Activate existing conda environment
+conda activate env_transformer_eval
 
-# Install PyTorch
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
-
-# Install core dependencies
+# Install dependencies (if not already installed)
 pip install -r requirements.txt
-
-# Install Habitat-Sim (for simulation)
-conda install -c conda-forge habitat-sim=0.2.4 headless=True
-
-# Install edge deployment dependencies (Jetson Orin)
-# pip install torch2trt tensorrt
+# or
+pip install torch transformers peft datasets accelerate scikit-learn \
+    numpy pyyaml wandb tqdm matplotlib seaborn pandas
 ```
 
-### Dataset Preparation
-
-Note: The official **R2R-CE** and **RxR-CE** datasets cannot be directly downloaded and used. You need to run them in the Habitat simulator first, extract RGB-D images from the simulation process, save them, and then perform structured text conversion on the extracted RGB-D images. Organize the processed dataset in `data/dataset/` following the structure in `configs/data.yaml`:
-
-Download the official **R2R-CE** and **RxR-CE** datasets and organize them in `data/dataset/` following the structure in `configs/data.yaml`:
+### Verify Installation
 
 ```bash
-data/dataset/
-├── R2R-CE/
-│   ├── train/
-│   ├── val/
-│   └── val-unseen/
-└── RxR-CE/
-    ├── train/
-    ├── val/
-    └── val-unseen/
+# Test model loading and forward pass
+python -c "
+import sys; sys.path.insert(0, '.')
+from sol_nav.models.solnav_model import SOLNavMultiStepClassifier
+import torch
+model = SOLNavMultiStepClassifier(
+    'Qwen/Qwen3-Embedding-0.6B', num_labels=4,
+    class_weights=torch.ones(4), num_steps=4,
+    cache_dir='data/hf_model_cache'
+)
+print(f'Model loaded: {model.embedding_dim}d, {sum(p.numel() for p in model.parameters())/1e6:.1f}M params')
+"
 ```
 
-The dataset will be automatically preprocessed into structured textual observations on first run (configurable grid resolution).
+## Dataset
 
-## 🚦 Quick Start
+### Format
 
-### 1. Train SOL-Nav
+The dataset is in `l2am_r2r_v3` format:
+```
+data/l2am_r2r_v3/
+├── train/6/          # Training episodes (6x6 grid)
+│   └── merged_part_*.json
+├── val_seen/6/       # Validation seen episodes
+│   └── merged_part_*.json
+└── val_unseen/6/     # Validation unseen episodes
+    └── merged_part_*.json
+```
 
-Fine-tune the Qwen3-Embedding-0.6B model with LoRA on R2R-CE/RxR-CE (4 RTX 4090 GPUs, ~2 weeks for 10 epochs):
+Each JSON file contains `{"episodes": [...]}` with episodes having:
+- `episode_id`, `scene_id`, `instruction`
+- `frames`: list of frame dicts with:
+  - `time_step`, `semantic_patches`, `depth_patches`, `color_patches`
+  - `agent_position`, `action` (0=stop, 1=turn_left, 2=turn_right, 3=move_forward)
+
+### Multi-Resolution Prompt Format
+
+SOL-Nav uses multi-resolution grids following the paper:
+- **Long-term history**: 16 frames at 2×2 grid (oldest observations)
+- **Short-term history**: 2 frames at 4×4 grid (recent observations)
+- **Current observation**: 1 frame at 6×6 grid (full resolution)
+
+Example prompt structure:
+```
+### System Description:
+You are a robot that can turn left or right by a specific degree, move forward a certain distance, or stop...
+
+### Structured Obervation:
+
+[Time Step -18] Long Observation Grid:
+[0,0]: depth=2.31, semantic=ceiling, color=light_gray; [0,1]: depth=2.31, semantic=ceiling, color=light_gray
+[1,0]: depth=2.98, semantic=ceiling, color=gray; [1,1]: depth=2.98, semantic=ceiling, color=light_gray
+
+[Time Step -17] Long Observation Grid:
+...
+
+[Time Step -2] Short Observation Grid:
+[0,0]: depth=2.11, semantic=wall, color=yellow; [0,1]: ...
+[1,0]: depth=2.45, semantic=wall, color=light_gray; [1,1]: ...
+...
+
+[Time Step 0] Current Observation Grid:
+[0,0]: depth=2.08, semantic=window, color=gray; [0,1]: ...
+[1,0]: depth=2.96, semantic=wall, color=gray; [1,1]: ...
+...
+
+### Task Instruction:
+Go around the right side of the center unit and stop by the right side doorway.
+```
+
+See `samples/example_prompts.txt` for complete examples.
+
+## Training
+
+### Configuration
+
+Training configuration is in `configs/default.yaml`:
+
+```yaml
+model:
+  name: "Qwen/Qwen3-Embedding-0.6B"
+  max_length: 2500
+  num_labels: 4
+  num_steps: 4
+
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.05
+
+training:
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  num_epochs: 5
+  bf16: true
+  gradient_checkpointing: true
+```
+
+### Single GPU Training
 
 ```bash
-python train.py --config configs/train.yaml --dataset R2R-CE --gpu 0,1,2,3
+python train.py --config configs/default.yaml
 ```
 
-### 2. Evaluate on Simulated Benchmarks
-
-Evaluate SOL-Nav on R2R-CE/RxR-CE val-unseen split and generate metric reports:
+### Multi-GPU Training (4x RTX 4090)
 
 ```bash
-python eval.py --config configs/train.yaml --dataset R2R-CE --checkpoint runs/best_model.pth --gpu 0
+# Set required environment variables for RTX 4090
+export NCCL_P2P_DISABLE=1
+export NCCL_IB_DISABLE=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export WANDB_PROJECT=sol-nav
+export TOKENIZERS_PARALLELISM=false
+
+# Launch with torchrun
+torchrun --nproc_per_node=4 --master_port=29500 train.py \
+    --config configs/default.yaml
 ```
 
-### 3. Real-World Deployment
-
-Run SOL-Nav on Unitree Go2 robot (NVIDIA Jetson Orin + Intel RealSense D435i):
+### Resume Training from Checkpoint
 
 ```bash
-python deploy.py --config configs/deploy.yaml --checkpoint runs/best_model.pth
+torchrun --nproc_per_node=4 --master_port=29500 train.py \
+    --config configs/default.yaml \
+    --resume_from_checkpoint outputs/solnav_qwen3_lora_multires/checkpoint-2500
 ```
 
-### 4. Run Demo
+### Training Arguments
 
-Quick demo on simulated environment with pre-trained checkpoint:
+| Argument | Description |
+|----------|-------------|
+| `--config` | Path to config YAML (default: configs/default.yaml) |
+| `--data_root` | Override dataset root path |
+| `--output_dir` | Override output directory |
+| `--batch_size` | Override batch size per GPU |
+| `--num_epochs` | Override number of epochs |
+| `--force_rebuild` | Force rebuild cached datasets |
+| `--resume_from_checkpoint` | Resume from checkpoint path |
+| `--multires` / `--no_multires` | Toggle multi-resolution mode |
+
+### Monitoring with WandB
+
+Training metrics are logged to WandB:
+- Loss curves
+- Per-step accuracy (step 0-3)
+- Per-class recall and F1 scores
+- Learning rate schedule
+- Gradient norms
+
+Access at: `https://wandb.ai/<your-entity>/sol-nav`
+
+## Evaluation
+
+### Evaluate on Val-Unseen
 
 ```bash
-python demo.py --config configs/demo.yaml --checkpoint runs/best_model.pth --instruction "Go to the dining table and stop"
+python eval.py \
+    --config configs/default.yaml \
+    --checkpoint outputs/solnav_qwen3_lora_multires/final \
+    --split val_unseen \
+    --output_dir outputs/solnav_qwen3_lora_multires/eval_val_unseen_final \
+    --batch_size 32 \
+    --save_samples \
+    --num_samples 30
 ```
 
-## 📈 Visualization
+### Evaluation Options
 
-- **Structured Observation Visualization**: The `utils/visualization.py` script plots the N×N grid observations with depth/semantic/color info.
+| Argument | Description |
+|----------|-------------|
+| `--checkpoint` | Path to model checkpoint directory |
+| `--split` | Dataset split: val_seen, val_unseen, train |
+| `--output_dir` | Output directory for results |
+| `--batch_size` | Inference batch size |
+| `--save_samples` | Save sample predictions |
+| `--num_samples` | Number of samples to save |
+| `--max_eval_samples` | Limit evaluation samples (for debugging) |
 
-- **Trajectory Plotting**: Evaluation results include trajectory plots of the agent in Habitat simulator (top-down view).
+### Evaluation Outputs
 
-- **Metric Curves**: Training/evaluation metrics (loss, NE, SR, SPL) are logged to WandB and saved as PDF in `runs/`.
+The evaluation generates:
+- `metrics.json`: All evaluation metrics
+- `confusion_matrices.png`: Per-step confusion matrices
+- `action_distributions.png`: Ground truth vs predicted distributions
+- `metrics_summary.png`: Summary bar chart
+- `sample_predictions.json`: Detailed sample predictions
+- `sample_predictions.txt`: Human-readable predictions
 
-## 🎯 Future Work
+### Key Metrics
 
-The SOL-Nav framework is designed for easy extension—key future directions supported by the codebase:
+- **First-step Accuracy (step0_acc)**: Accuracy of the first action prediction
+- **Mean Step Accuracy**: Average accuracy across all 4 action steps
+- **Macro F1**: F1 score averaged across all action classes
+- **Per-class Recall**: Recall for each action (stop, turn_left, turn_right, move_forward)
 
-1. Enrich Structured Observations: Add fine-grained features (shape, texture) to grid cells.
+## Model Architecture
 
-2. Adaptive Grid Resolution: Dynamic N×N grid based on scene complexity.
+```
+SOLNavMultiStepClassifier
+├── base_model: Qwen3-Embedding-0.6B (with LoRA)
+│   └── LoRA: rank=16, alpha=32, targets=[q_proj, k_proj, v_proj, o_proj]
+├── mean_pooling: Sequence → fixed-size embedding
+└── prediction_heads: 4× (LayerNorm → Linear → GELU → Dropout → Linear)
+    └── Each head: embedding_dim → embedding_dim//2 → num_labels
+```
 
-3. Multi-Sensor Fusion: Integrate IMU/LiDAR data into structured textual observations.
+- **Backbone**: Qwen3-Embedding-0.6B (~600M params)
+- **LoRA**: 4.59M trainable parameters (0.76% of total)
+- **Pooling**: Mean pooling over sequence (more robust than CLS for long prompts)
+- **Loss**: Weighted cross-entropy (balanced class weights)
+- **Precision**: bf16 for efficient training on RTX 4090
 
-4. Complex Scenarios: Extend to outdoor navigation, dynamic environments (moving objects).
+## Project Structure
 
-5. Model Compression: Further optimize PLM for edge devices (quantization, pruning).
+```
+sol-nav/
+├── configs/
+│   └── default.yaml          # Training/evaluation configuration
+├── data/
+│   ├── cache/                # Cached datasets
+│   └── hf_model_cache/       # HuggingFace model cache
+├── models/                   # Saved model checkpoints
+│   └── solnav_qwen3_lora_multires/
+│       ├── final/            # Final model checkpoint
+│       └── checkpoint-*/     # Training checkpoints
+├── outputs/
+│   └── solnav_qwen3_lora_multires/
+│       ├── eval_val_unseen_final/  # Evaluation results
+│       └── samples/          # Training sample prompts
+├── samples/
+│   ├── example_prompts.json  # Example prompts (JSON)
+│   └── example_prompts.txt   # Example prompts (readable)
+├── sol_nav/
+│   ├── __init__.py
+│   ├── data/
+│   │   └── dataset.py        # Dataset loading and processing
+│   ├── models/
+│   │   └── solnav_model.py   # SOL-Nav model implementation
+│   ├── navigation/
+│   │   └── __init__.py       # Action space definition
+│   └── utils/
+│       ├── config.py         # Configuration loader
+│       ├── logging.py        # Logging utilities
+│       └── text_builder.py   # Multi-resolution prompt builder
+├── train.py                  # Training script
+├── eval.py                   # Evaluation script
+├── pyproject.toml            # Project dependencies
+└── README.md                 # This file
+```
 
-6. Embodied Manipulation: Extend SOL-Nav to vision-language manipulation tasks.
+## Troubleshooting
 
-## 📝 Citation
+### CUDA Out of Memory
 
-If you find SOL-Nav useful for your research, please cite our paper:
+Reduce batch size or max_length:
+```bash
+python train.py --config configs/default.yaml --batch_size 1
+```
+
+Or edit `configs/default.yaml`:
+```yaml
+model:
+  max_length: 2048  # Reduce from 2500
+training:
+  per_device_train_batch_size: 1
+```
+
+### RTX 4090 Communication Errors
+
+Set NCCL flags:
+```bash
+export NCCL_P2P_DISABLE=1
+export NCCL_IB_DISABLE=1
+```
+
+### Disk Space Issues
+
+The dataset cache (~40GB for 631K samples) requires significant disk space. To reduce:
+1. Remove old checkpoints: `rm -rf outputs/*/checkpoint-[0-9]*`
+2. Skip tokenized cache (already handled in code)
+3. Use `--force_rebuild` only when needed
+
+### Slow Dataset Building
+
+The first run builds the dataset cache (~10-15 minutes for 631K samples). Subsequent runs load from cache instantly.
+
+## Citation
 
 ```bibtex
 @article{peng2026structured,
@@ -307,10 +347,10 @@ If you find SOL-Nav useful for your research, please cite our paper:
 }
 ```
 
-## 📧 Contact
+## License
 
-For questions, issues, or collaboration, please open an issue in the repository or contact the authors at Daojie.PENG@qq.com.
+MIT License - see [LICENSE](LICENSE) file.
 
-## 📄 License
+## Contact
 
-This project is licensed under the **MIT License**—see the [LICENSE](LICENSE) file for details.
+For questions: Daojie.PENG@qq.com
