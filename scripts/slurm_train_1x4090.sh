@@ -26,6 +26,7 @@ export NCCL_IB_DISABLE=1
 export TOKENIZERS_PARALLELISM=false
 export CUDA_VISIBLE_DEVICES=0
 export PYTHONUNBUFFERED=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 mkdir -p logs
 

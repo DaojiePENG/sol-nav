@@ -397,7 +397,7 @@ def main():
         ddp_find_unused_parameters=train_cfg.get("ddp_find_unused_parameters", True),
         remove_unused_columns=True,
         logging_dir=os.path.join(OUTPUT_DIR, "logs"),
-        gradient_checkpointing=False,
+        gradient_checkpointing=train_cfg.get("gradient_checkpointing", False),
     )
 
     # Create Trainer
