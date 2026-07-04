@@ -7,24 +7,25 @@ following the SOL-Nav paper supplement format. Supports multi-resolution grids:
   - Short-term history: 4x4 grid (downsampled from 6x6)
   - Current observation: 6x6 grid (full resolution)
 
-Prompt format (matching supplement material):
+Prompt format:
   ### System Description:
   You are a robot that ...
 
   ### Structured Obervation:
+  Each cell format: [Row,Col]: depth, semantic, color
 
   [Time Step -18] Long Observation Grid:
-  [0,0]: depth=2.31, semantic=ceiling, color=light_gray; [0,1]: ...
-  [1,0]: depth=2.98, semantic=ceiling, color=gray; [1,1]: ...
+  [0,0]: 2.31, ceiling, light_gray; [0,1]: ...
+  [1,0]: 2.98, ceiling, gray; [1,1]: ...
 
   ...more long-term frames...
 
   [Time Step -2] Short Observation Grid:
-  [0,0]: depth=2.11, semantic=wall, color=yellow; [0,1]: ...
+  [0,0]: 2.11, wall, yellow; [0,1]: ...
   ...
 
   [Time Step 0] Current Observation Grid:
-  [0,0]: depth=2.08, semantic=window, color=gray; [0,1]: ...
+  [0,0]: 2.08, window, gray; [0,1]: ...
   ...
 
   ### Task Instruction:
@@ -128,6 +129,9 @@ def downsample_frame(
 def format_grid_block(frame: dict, grid_r: int, grid_c: int) -> str:
     """Format a single frame's observation as a grid block.
 
+    Cell format: [Row,Col]: depth, semantic, color
+    (Format header is emitted once per prompt by the caller, not per cell.)
+
     Args:
         frame: dict with keys 'depth_patches', 'semantic_patches', 'color_patches',
                each mapping '(i,j)' -> value.
@@ -135,8 +139,8 @@ def format_grid_block(frame: dict, grid_r: int, grid_c: int) -> str:
 
     Returns:
         Multi-line string like:
-            [0,0]: depth=2.31, semantic=ceiling, color=light_gray; [0,1]: ...
-            [1,0]: depth=2.98, semantic=ceiling, color=gray; [1,1]: ...
+            [0,0]: 2.31, ceiling, light_gray; [0,1]: ...
+            [1,0]: 2.98, ceiling, gray; [1,1]: ...
     """
     dp = frame.get("depth_patches", {})
     sp = frame.get("semantic_patches", {})
@@ -150,9 +154,7 @@ def format_grid_block(frame: dict, grid_r: int, grid_c: int) -> str:
             d_val = dp.get(key, 0.0)
             s_val = sp.get(key, "unknown")
             c_val = cp.get(key, "unknown")
-            cells.append(
-                f"[{i},{j}]: depth={d_val:.2f}, semantic={s_val}, color={c_val}"
-            )
+            cells.append(f"[{i},{j}]: {d_val:.2f}, {s_val}, {c_val}")
         rows.append("; ".join(cells))
     return "\n".join(rows)
 
@@ -197,7 +199,11 @@ def build_multires_prompt(
     n_long = len(long_term_frames)
     n_short = len(short_term_frames)
 
-    parts = [SYSTEM_PROMPT, "", "### Structured Obervation:", ""]
+    parts = [
+        SYSTEM_PROMPT, "",
+        "### Structured Obervation:",
+        "Each cell format: [Row,Col]: depth, semantic, color", "",
+    ]
 
     # Long-term history frames (oldest to newest)
     # Time steps: -(n_long + n_short) to -(n_short + 1)
@@ -258,7 +264,11 @@ def build_single_res_prompt(
     Returns:
         Formatted prompt string.
     """
-    parts = [SYSTEM_PROMPT, "", "### Structured Obervation:", ""]
+    parts = [
+        SYSTEM_PROMPT, "",
+        "### Structured Obervation:",
+        "Each cell format: [Row,Col]: depth, semantic, color", "",
+    ]
 
     num_his = len(frames)
     for idx, frame in enumerate(frames):

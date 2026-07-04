@@ -119,7 +119,13 @@ You are a robot that can turn left or right by a specific degree, move forward a
 Go around the right side of the center unit and stop by the right side doorway.
 ```
 
-See `samples/example_prompts.txt` for complete examples.
+See `samples/example_prompts.txt` for complete examples. To regenerate:
+
+```bash
+python scripts/generate_example_prompts.py                       # 默认: 5 条 train 样本
+python scripts/generate_example_prompts.py --n 10 --seed 123     # 指定数量和随机种子
+python scripts/generate_example_prompts.py --split val_unseen    # 从 val_unseen 采样
+```
 
 ## Training
 
@@ -168,6 +174,34 @@ export TOKENIZERS_PARALLELISM=false
 torchrun --nproc_per_node=4 --master_port=29500 train.py \
     --config configs/default.yaml
 ```
+
+### SLURM Job Submission
+
+Pre-built SLURM scripts are available in `scripts/`. All scripts automatically handle NCCL flags for RTX 4090.
+
+```bash
+# ── 本地调试（无需 sbatch，直接运行）──
+./scripts/debug_train_1gpu.sh           # 单卡，默认 GPU 0
+./scripts/debug_train_1gpu.sh 2         # 单卡，指定 GPU 2
+
+./scripts/debug_train_multigpu.sh       # 多卡，默认全部 4 块 GPU
+./scripts/debug_train_multigpu.sh 0,1   # 多卡，指定 GPU 0 和 1
+./scripts/debug_train_multigpu.sh 0,1,2 # 多卡，指定 GPU 0, 1, 2
+
+# ── SLURM 提交 ──
+sbatch scripts/slurm_train_1x4090.sh            # 单卡（快速验证）
+sbatch scripts/slurm_train_4x4090.sh             # 单节点 4×4090 DDP（推荐）
+sbatch scripts/slurm_train_8x4090_multinode.sh   # 跨节点 8×4090 DDP
+```
+
+查看任务状态与日志：
+```bash
+squeue                                    # 查看任务队列
+tail -f logs/train_4x4090_<job_id>.out    # 查看训练日志
+scancel <job_id>                          # 取消任务
+```
+
+> **RTX 4090 NCCL 说明**：RTX 4000 系列不支持 P2P 和 IB 通信，所有脚本已自动设置 `NCCL_P2P_DISABLE=1` 和 `NCCL_IB_DISABLE=1`。也可用 `accelerate launch` 代替 `torchrun`，Accelerate 会自动处理这些环境变量。
 
 ### Resume Training from Checkpoint
 
@@ -282,6 +316,13 @@ sol-nav/
 ├── samples/
 │   ├── example_prompts.json  # Example prompts (JSON)
 │   └── example_prompts.txt   # Example prompts (readable)
+├── scripts/
+│   ├── debug_train_1gpu.sh               # 本地单卡调试
+│   ├── debug_train_multigpu.sh           # 本地多卡调试（预验证 SLURM 效果）
+│   ├── slurm_train_1x4090.sh             # SLURM 单卡训练
+│   ├── slurm_train_4x4090.sh             # SLURM 单节点 4 卡 DDP
+│   ├── slurm_train_8x4090_multinode.sh   # SLURM 跨节点 8 卡 DDP
+│   └── generate_example_prompts.py       # 生成 samples/ 下的示例 prompt
 ├── sol_nav/
 │   ├── __init__.py
 │   ├── data/
@@ -319,10 +360,15 @@ training:
 
 ### RTX 4090 Communication Errors
 
-Set NCCL flags:
+RTX 4000 系列不支持 P2P/IB 通信，需禁用相关 NCCL 特性：
+
 ```bash
+# 方式一：手动设置环境变量（脚本中已包含）
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
+
+# 方式二：用 accelerate launch（自动设置，无需手动 export）
+accelerate launch --num_processes=4 train.py --config configs/default.yaml
 ```
 
 ### Disk Space Issues
