@@ -10,16 +10,6 @@ Official implementation of **SOL-Nav**, a Vision-Language Navigation (VLN) frame
 
 SOL-Nav translates egocentric RGB-D observations into structured textual descriptions (semantic, color, depth information in N×N grids) and concatenates this with language instructions as pure language input to a PLM (Qwen3-Embedding-0.6B). This eliminates the need for visual encoders and leverages the full reasoning capabilities of pre-trained language models.
 
-### Key Results (R2R-CE Val-Unseen)
-
-| Metric | Value |
-|--------|-------|
-| First-step Accuracy | **73.15%** |
-| Mean Step Accuracy | **66.31%** |
-| Macro F1 (Step 0) | **0.4313** |
-| Training Steps | 2,500 |
-| Model Parameters | 600M (6.7M trainable via LoRA) |
-
 ## Quick Start
 
 ### Prerequisites
